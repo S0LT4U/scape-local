@@ -1,0 +1,13 @@
+node_modules/
+*.log
+vendor/**/*.exe
+vendor/**/*.zip
+dist/
+# Fractal Design's copyrighted Adjust Pro files: kept locally only, never published
+archive/original/
+archive/pretty/
+archive/portable-1.0.12/original/
+archive/portable-1.0.12/pretty/
+# local tooling / notes
+.claude/
+reddit-post.md

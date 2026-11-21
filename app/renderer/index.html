@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'" />
+  <title>Scape Local</title>
+  <link rel="icon" href="img/icon.png" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <img src="img/icon.png" alt="" /><span>Scape Local</span>
+      <nav class="tabs" aria-label="View">
+        <button class="tab" data-view="home">Home</button>
+        <button class="tab" data-view="editor">EQ editor</button>
+      </nav>
+    </div>
+    <div class="conn">
+      <span id="connDot" class="dot"></span>
+      <span id="connLabel">Not connected</span>
+      <span id="battery" class="pill hidden"></span>
+      <span id="boostBadge" class="pill boost hidden"></span>
+      <button id="btnConnect" class="btn">Connect</button>
+      <button id="btnRefresh" class="btn ghost" disabled>Re-read</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ================= QUICK EQ (home) ================= -->
+    <section class="card wide view-home" id="cardQuickEq">
+      <div class="card-head">
+        <h2>EQ</h2>
+        <button class="btn small ghost" data-goto="editor">Customize…</button>
+      </div>
+      <div id="quickEq" class="quick-eq"></div>
+    </section>
+
+    <!-- ================= DEVICE ================= -->
+    <section class="card view-home" id="cardDevice">
+      <h2>Headset</h2>
+      <p id="deviceHint" class="muted">Connect the headset with USB-C or plug in the 2.4 GHz dongle. It connects automatically and reads everything first.</p>
+      <dl id="deviceInfo" class="kv hidden"></dl>
+    </section>
+
+    <!-- ================= DEFAULTS ================= -->
+    <section class="card view-home" id="cardDefaults">
+      <h2>Lighting &amp; mic</h2>
+      <div class="rows">
+        <div class="row">
+          <div><strong>Lighting</strong><div class="muted small">Headset RGB on/off</div></div>
+          <div class="val" id="valLights">—</div>
+          <div class="actions">
+            <button class="btn small ghost" data-act="lights" data-on="0" disabled>Off</button>
+            <button class="btn small ghost" data-act="lights" data-on="1" disabled>On</button>
+          </div>
+        </div>
+        <div class="row">
+          <div><strong>Sidetone</strong><div class="muted small">Hear your own voice</div></div>
+          <div class="val" id="valSidetone">—</div>
+          <div class="actions">
+            <button class="btn small ghost" data-act="sidetone0" disabled>Set to 0</button>
+            <button class="btn small ghost" data-act="sidetoneDown" disabled>−10%</button>
+            <button class="btn small ghost" data-act="sidetoneUp" disabled>+10%</button>
+          </div>
+        </div>
+        <div class="row">
+          <div><strong>Mic noise cancellation</strong><div class="muted small">ENC</div></div>
+          <div class="val" id="valEnc">—</div>
+          <div class="actions">
+            <button class="btn small ghost" data-act="enc" data-on="0" disabled>Off</button>
+            <button class="btn small ghost" data-act="enc" data-on="1" disabled>On</button>
+          </div>
+        </div>
+      </div>
+      <div class="defaults-bar">
+        <div>
+          <strong>My defaults</strong>
+          <span class="muted small">Lighting off · Sidetone 0 · Noise cancellation off</span>
+        </div>
+        <div class="actions">
+          <button id="btnApplyDefaults" class="btn" disabled>Apply now</button>
+          <label class="switch"><input type="checkbox" id="chkEnforce" /><span></span> Re-apply on every connect</label>
+        </div>
+      </div>
+      <div class="host-only hidden">
+        <label class="switch"><input type="checkbox" id="chkAutostart" /><span></span> Start with Windows (in the tray)</label>
+      </div>
+    </section>
+
+    <!-- ================= BOOST ================= -->
+    <section class="card view-home" id="cardBoost">
+      <div class="card-head">
+        <h2>Boost</h2>
+        <label class="switch big"><input type="checkbox" id="chkBoost" /><span></span> <strong id="boostState">Off</strong></label>
+      </div>
+      <div class="boost-controls">
+        <div class="slider">
+          <input type="range" id="rngBoost" min="1" max="14" step="1" value="6" list="boostTicks" aria-label="Boost level in dB" />
+          <datalist id="boostTicks"><option value="3"></option><option value="6"></option><option value="9"></option><option value="12"></option></datalist>
+          <output id="boostValue" for="rngBoost">+6 dB · 200%</output>
+        </div>
+        <div class="seg" role="radiogroup" aria-label="Where to boost">
+          <label><input type="radio" name="boostWhere" value="pc" checked /> <span>PC (Windows only)</span></label>
+          <label><input type="radio" name="boostWhere" value="headset" /> <span>Headset EQ</span></label>
+        </div>
+      </div>
+      <p id="boostWhereHint" class="muted small"></p>
+      <div id="boostSetup" class="setup hidden"></div>
+      <div id="boostConflict" class="warn hidden"></div>
+      <p class="muted small">Boost raises the digital level, like a browser “amplify” slider. Quiet sources get louder. Already-loud music or games can clip (crackle): if you hear distortion, pick a lower level.</p>
+    </section>
+
+    <!-- ================= EQ ================= -->
+    <section class="card wide view-editor" id="cardEq">
+      <div class="card-head">
+        <h2>Equalizer</h2>
+        <div class="actions">
+          <select id="selPreset" aria-label="Preset"></select>
+          <button id="btnSavePreset" class="btn small ghost">Save as preset…</button>
+          <button id="btnDeletePreset" class="btn small ghost">Delete</button>
+          <button id="btnExport" class="btn small ghost">Export JSON</button>
+          <label class="btn small ghost file">Import JSON<input type="file" id="fileImport" accept=".json,application/json" /></label>
+        </div>
+      </div>
+
+      <div class="eq-code">
+        <label for="txtCode">EQ code</label>
+        <input id="txtCode" spellcheck="false" autocomplete="off" />
+        <button id="btnDecode" class="btn small">Load code</button>
+        <button id="btnCopy" class="btn small ghost">Copy</button>
+      </div>
+      <div id="codeMsg" class="msg"></div>
+
+      <canvas id="graph" height="260"></canvas>
+      <div id="clipWarn" class="warn hidden"></div>
+
+      <table class="bands">
+        <thead><tr><th>#</th><th>Type</th><th>Frequency (Hz)</th><th>Gain (dB)</th><th>Q</th><th></th></tr></thead>
+        <tbody id="bandRows"></tbody>
+      </table>
+      <div class="actions">
+        <button id="btnAddBand" class="btn small ghost">+ Add band</button>
+        <button id="btnFlat" class="btn small ghost">Flat</button>
+        <span id="bandErrors" class="err small"></span>
+      </div>
+
+      <h3>Headset slots</h3>
+      <div id="slots" class="slots"><p class="muted">Connect to read the three slots.</p></div>
+
+      <details class="backups">
+        <summary>Slot backups <span id="backupCount" class="muted"></span></summary>
+        <div id="backupList"></div>
+      </details>
+    </section>
+
+    <!-- ================= LOG ================= -->
+    <section class="card wide view-editor">
+      <details>
+        <summary>HID packet log</summary>
+        <pre id="log" class="log"></pre>
+      </details>
+    </section>
+  </main>
+
+  <!-- confirm dialog -->
+  <dialog id="dlgConfirm">
+    <form method="dialog">
+      <h3 id="dlgTitle">Send to headset?</h3>
+      <p class="muted small">These exact bytes will be sent as HID output report 2.</p>
+      <pre id="dlgBytes" class="log"></pre>
+      <div class="actions end">
+        <button value="cancel" class="btn ghost">Cancel</button>
+        <button value="ok" class="btn danger" id="dlgOk">Send</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- preset name dialog (Electron has no window.prompt) -->
+  <dialog id="dlgName">
+    <form method="dialog">
+      <h3>Save as preset</h3>
+      <label class="muted small" for="txtPresetName">Name</label>
+      <input id="txtPresetName" maxlength="36" autocomplete="off" />
+      <div class="actions end">
+        <button value="cancel" class="btn ghost">Cancel</button>
+        <button value="ok" class="btn" id="dlgNameOk">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast"></div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+{
+  "name": "scape-local",
+  "version": "0.1.5",
+  "private": true,
+  "description": "Offline tray app for the Fractal Scape headset (EQ, lighting, mic) — replacement for Adjust Pro",
+  "author": "S0LT4U",
+  "type": "module",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test tests/*.test.js",
+    "dist": "npm test && electron-builder --win nsis --x64 && node ../tools/make-kit.mjs"
+  },
+  "devDependencies": {
+    "electron": "44.10.2",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "local.scape",
+    "productName": "Scape Local",
+    "copyright": "S0LT4U",
+    "directories": {
+      "output": "../dist/build-${version}",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "apo-host.cjs",
+      "lib/**",
+      "renderer/**",
+      "assets/**",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "lib/**"
+    ],
+    "extraResources": [
+      {
+        "from": "../vendor/equalizer-apo-1.4.2/EqualizerAPO-x64-1.4.2.exe",
+        "to": "EqualizerAPO-x64-1.4.2.exe"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": false,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true,
+      "include": "build/installer.nsh",
+      "artifactName": "Scape-Local-Setup-${version}.${ext}"
+    }
+  }
+}

@@ -1,0 +1,4 @@
+* text=auto eol=lf
+archive/original/** -text
+archive/portable-1.0.12/original/** -text
+*.cmd text eol=crlf
