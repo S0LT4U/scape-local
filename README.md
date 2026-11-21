@@ -66,6 +66,28 @@ direct mode uses the same commands but hasn't been tested yet.
 **Hearing:** Boost can make audio a lot louder. Turn the volume down before enabling it. Very
 loud content may clip (crackle) at high Boost levels.
 
+## Roadmap / not yet supported
+
+**Lighting customization is the main gap.** Today Scape Local can only turn the headset RGB
+**on or off**. These Adjust Pro lighting features aren't implemented yet:
+
+- **Fractal themes:** Northern lights, Summer sky, Sunset, Starfall, Glistening ice, Pink sapphire,
+  Lunar mist, Mystic night, Campfire, Radiant dawn.
+- **Custom lighting patterns:** Shift, Still, Breathe, Waves, Two color fade, Lava lamp, each with
+  a colour palette.
+- **Colour picker** (hex/RGB), **speed** and **brightness**.
+- **Windows Dynamic Lighting (WDL)** enable/disable (Advanced settings).
+
+The protocol for uploading lighting effects is already mapped (multi-packet effect upload,
+[PROTOCOL.md §6](PROTOCOL.md#6-lighting-headset)). It hasn't been built yet because it writes
+effect data to the headset's storage and needs careful testing first. Contributions and testers are welcome.
+
+Other open items:
+- USB-C direct mode is untested (should work; same commands).
+- Mic EQ (documented in PROTOCOL.md §7, no UI yet).
+- Whether settings survive a headset power cycle hasn't been confirmed. "Re-apply on every connect"
+  covers the defaults either way.
+
 ## How it works
 
 | Path | What |
