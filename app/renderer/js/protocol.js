@@ -40,11 +40,19 @@ export const ALLOWED = new Map([
   [k(G.EQ, 0x03), { name: 'COMMIT_EQ', write: true, reply: true }],
   [k(G.EQ, 0x07), { name: 'SELECT_EQ_SLOT', write: true, reply: false }],
   [k(G.EFFECT, 0x04), { name: 'SELECT_EFFECT_SLOT', write: true, reply: true }],
+  // lighting effect upload (effect slot 1 only; see lighting.js and PROTOCOL.md §6)
+  [k(G.EFFECT, 0x01), { name: 'SET_EFFECT', write: true, reply: true }],
+  [k(G.EFFECT, 0x02), { name: 'SEND_EFFECT', write: true, reply: true }],
+  [k(G.EFFECT, 0x03), { name: 'COMMIT_EFFECT', write: true, reply: true }],
+  [k(G.EFFECT, 0x05), { name: 'READ_EFFECT', write: false, reply: true }],
   [k(G.FACTORY_HS, 0x34), { name: 'SIDETONE_CONTROL', write: true, reply: true }],
   [k(G.FACTORY_HS, 0x36), { name: 'ENC_CONTROL', write: true, reply: true }],
 ]);
 
 export class BlockedCommandError extends Error {}
+
+/** Largest effect package: 48-byte header + 255 frames x 12 LEDs x RGB. */
+export const MAX_EFFECT_PACKAGE = 48 + 255 * 36;
 
 /** Throws unless the packet is on the allowlist and its arguments are in range. */
 export function checkPacket(bytes) {
@@ -63,6 +71,18 @@ export function checkPacket(bytes) {
   if (bytes[0] === G.EQ && bytes[1] === 0x04 && !(bytes[2] >= 1 && bytes[2] <= 5 && bytes[3] <= 1))
     throw new BlockedCommandError('Blocked: EQ read slot out of range');
   if (bytes[0] === G.EFFECT && bytes[1] === 0x04 && bytes[2] > 3) throw new BlockedCommandError('Blocked: effect slot > 3');
+  if (bytes[0] === G.EFFECT && bytes[1] === 0x01) {
+    const len = bytes[4] | (bytes[5] << 8);
+    // Length 0 would clear the slot; only real effect packages (header + at least one frame) are allowed.
+    if (!(bytes.length === 6 && bytes[2] === 1 && len >= 48 + 36 && len <= MAX_EFFECT_PACKAGE))
+      throw new BlockedCommandError('Blocked: SET_EFFECT must target effect slot 1 with a valid package length');
+  }
+  if (bytes[0] === G.EFFECT && bytes[1] === 0x02 && !(bytes.length === 63 && bytes[2] >= 1 && bytes[2] <= 60))
+    throw new BlockedCommandError('Blocked: SEND_EFFECT chunk must be 1–60 bytes in a 63-byte packet');
+  if (bytes[0] === G.EFFECT && bytes[1] === 0x03 && bytes.length !== 2)
+    throw new BlockedCommandError('Blocked: COMMIT_EFFECT takes no arguments (frame-based commit only)');
+  if (bytes[0] === G.EFFECT && bytes[1] === 0x05 && !(bytes.length === 5 && bytes[2] === 1))
+    throw new BlockedCommandError('Blocked: READ_EFFECT is only allowed for effect slot 1');
   if (bytes[0] === G.FACTORY_HS && bytes[1] === 0x34 && !(bytes[2] >= 2 && bytes[2] <= 3 && bytes[3] >= 1 && bytes[3] <= 50))
     throw new BlockedCommandError('Blocked: sidetone action must be VolUp/VolDown with 1–50 steps');
   if (bytes[0] === G.FACTORY_HS && bytes[1] === 0x36 && bytes[2] > 1) throw new BlockedCommandError('Blocked: ENC value must be 0/1');
@@ -127,6 +147,9 @@ export const parse = {
     btConnected: r[18] === 1,
     encOn: r[19] === 1,
     powerOn: r[20] === 1,
+    // Windows Dynamic Lighting: opt-in switch (byte 40) and whether Windows currently drives the LEDs (byte 33 == 0).
+    wdlOptIn: r[40] === 1,
+    wdlActive: r[40] === 1 && r[33] === 0,
   }),
   dongleState: (r) => ({ headsetLinked: r[3] === 1 }),
   /** GET_EQ_SETTINGS data: returns {slot, rateMask, empty, bands} */

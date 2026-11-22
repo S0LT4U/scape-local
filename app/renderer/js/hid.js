@@ -1,5 +1,6 @@
 // WebHID transport for the Scape headset / dongle. One request in flight at a time.
 import { HID_FILTERS, REPORT_ID, USAGE_PAGE, USAGE, PID_DONGLE, VID, checkPacket, replyMatches, hex, cmd, parse } from './protocol.js';
+import { buildEffectUpload, readEffectMeta, parseEffectMeta } from './lighting.js';
 
 const TIMEOUT_MS = 2000;
 
@@ -117,6 +118,22 @@ export class ScapeDevice extends EventTarget {
 
   async readState() {
     return parse.deviceState(await this.send(cmd.deviceState()));
+  }
+
+  /** What the headset says is stored in lighting effect slot 1 (preset id, pattern, colours, …), or null. */
+  async readLighting() {
+    return parseEffectMeta(await this.send(readEffectMeta()));
+  }
+
+  /** Upload a lighting effect to effect slot 1 and select it. onProgress(sent, total) is called per packet. */
+  async writeLighting(spec, { onProgress } = {}) {
+    const { packets } = buildEffectUpload(spec);
+    for (const p of packets) checkPacket(p);
+    for (let i = 0; i < packets.length; i++) {
+      await this.send(packets[i]);
+      onProgress?.(i + 1, packets.length);
+    }
+    return packets.length;
   }
 
   async readSlot(slot) {

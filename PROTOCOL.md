@@ -215,16 +215,35 @@ u16 at offset 9 and the next 4 bytes are zero.
 
 - **On/off:** `turnLight(on)` on the headset is just **select effect slot 1 or 0**:
   `A4 04 01` (on, slot 1) or **`A4 04 00` (lights off)**. [src] P:2855–2857, 2356–2362
-- Effect upload (custom colour/mode), frame-based:
-  `A4 01 <slot> <checksum> <lenLo> <lenHi>` (SET_EFFECT) → `A4 02 <n≤60> <60 bytes…>` repeated
-  (SEND_EFFECT) → `A4 03` (COMMIT) → `A4 04 <slot>` (SELECT).
-  The package header is `A5 5A <frames/36> FF <fps> <duration> <42 B metadata>` followed by frame data.
-  A timestamp-based variant uses `A4 11/12/13`. [src] P:2203–2362
-- Brightness isn't a separate command. The brightness byte is fixed at `0xFF`, and the app scales
-  the colours itself before sending them. [src]
-- **Status:** on/off is simple and verifiable (state byte 6). Colour/mode upload is a multi-packet
-  flash write. **I'll implement on/off first and keep effect upload read-only until the basics
-  are proven on hardware.**
+- **Effect upload (frame-based, what Adjust Pro uses for the Scape):** [src] P:2213–2340
+  1. `A4 01 01 <checksum> <lenLo> <lenHi>` SET_EFFECT. Slot 1, checksum = sum of all package bytes & 0xFF,
+     length little-endian.
+  2. `A4 02 <n> <n bytes, zero-padded to 60>` SEND_EFFECT, repeated until the package is sent (63-byte packets).
+  3. `A4 03` COMMIT_EFFECT.
+  4. `A4 04 01` SELECT_EFFECT_SLOT (this also turns the lights on).
+  Every packet gets a reply with the usual echo + status 0.
+- **Package:** `A5 5A <frameCount> FF <fps=20> <durationSeconds>` + 42 bytes of metadata (zero-padded) +
+  frames. A frame is the **12 LEDs** x RGB = 36 bytes (the Scape is ARGB sub-device 153 with 12 LEDs, W:4618).
+  duration = `11 − floor(clamp(speed,10,100)/10)` seconds. Frame count ≤ 255 (one byte).
+- **Metadata** (what Adjust Pro reads back to show the current preset): `<presetId> <mode> <speed>
+  <colours, unscaled RGB…> <brightness>`. Waves appends `up top down (100−freq) brightness <colour 2 scaled>`;
+  Two colour fade is `… <c1> <c2> <speed> <brightness>`. Fractal theme preset ids: Northern lights 0,
+  Summer sky 1, Sunset 2, Mystic night 3, Radiant dawn 5, Campfire 11, Glistening ice 12, Starfall 13,
+  Pink sapphire 14, Lunar mist 15. Custom presets use ids from 64 up.
+- **Patterns the Scape supports** (W:7108–7118): Shift (mode 0, 6 colours), Still (1, 1 colour), Breathe (2,
+  2 colours), Lava lamp (6, 6 colours, random by design), Waves/"wave ripple" (7, 2 colours), Two colour fade
+  (8, 2 colours). Frames are rendered on the PC; `app/renderer/js/lighting.js` reproduces Adjust Pro's
+  renderers **byte for byte** (checked against the original code for all 10 themes and edge cases).
+- **Brightness** isn't a separate command. The header's brightness byte is fixed at `0xFF`, and the colours
+  are scaled (`round(c × brightness/100)`) before frames are rendered. The brightness value is stored in the
+  metadata.
+- **Read back:** `A4 05 01 00 00` (READ_EFFECT, slot 1, offset 0). Metadata starts at reply byte 10.
+- **Windows Dynamic Lighting (WDL):** `F1 15 <0|1>` sets the opt-in switch; Adjust Pro expects **no reply**
+  (P:3866), which suggests the headset re-enumerates (it then appears as a Windows LampArray). State bytes:
+  40 = opt-in, 33 == 0 = Windows currently drives the LEDs. **Scape Local shows the status read-only and
+  doesn't send `F1 15`.**
+- **Not used / blocked:** `A4 01` with length 0 (clears the slot), slot 0 boot effects, the timestamp-based
+  variant `A4 11/12/13` (Adjust Pro Hub only), `A4 78` stop-loading, `A5 …` RGB streaming (SignalRGB).
 
 ## 7. Mic: sidetone and noise cancellation
 

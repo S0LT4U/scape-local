@@ -2,6 +2,7 @@ import { decodeEqCode, encodeEqCode, validateBands, describeBands, tidy, FILTER_
 import { responseDb, logFreqs, coefficients, magnitudeDb } from './biquad.js';
 import { ScapeDevice } from './hid.js';
 import { cmd, hex, parse, ALLOWED, buildEqWrite, SIDETONE, BlockedCommandError, sidetoneStepPlan, sidetonePercent } from './protocol.js';
+import { initLighting } from './lighting-ui.js';
 import { applyHeadsetBoost, headsetBoostBlocker, isBoostOf, isBoostBand, stripHeadsetBoost, HEADSET_MAX_DB, dbToPercent } from './boost.js';
 
 const $ = (id) => document.getElementById(id);
@@ -45,7 +46,9 @@ const state = {
   backups: store.get('scape.backups', []),
   enforce: store.get('scape.enforceDefaults', false),
   busy: false,
+  light: null, // lighting effect metadata read from the headset
 };
+let lighting = null; // lighting card controller (set at boot)
 
 // ---------------------------------------------------------------------------
 // UI helpers
@@ -91,6 +94,7 @@ function setBusy(b) {
   updateWriteButtons();
   renderBoost();
   renderQuickEq();
+  lighting?.render();
 }
 
 function updateWriteButtons() {
@@ -410,6 +414,7 @@ async function disconnect() {
   const d = state.device;
   state.device = null;
   state.info = state.hs = null;
+  state.light = null;
   state.slots = [];
   state.readDone = false;
   if (d) await d.close();
@@ -429,6 +434,12 @@ async function readEverything() {
   state.info = info;
   state.hs = hs;
   state.slots = slots;
+  state.light = null;
+  if (hs) {
+    try {
+      state.light = await d.readLighting();
+    } catch {} // older firmware may not answer; lighting still works
+  }
   state.readDone = true;
   renderDevice();
   renderDefaults();
@@ -501,6 +512,7 @@ function renderDefaults() {
   mark('[data-act=sidetone0]', () => hs.sidetoneRaw === 0);
   $('chkEnforce').checked = state.enforce;
   updateWriteButtons();
+  lighting?.render();
 }
 
 function renderSlots() {
@@ -1052,6 +1064,16 @@ if (host) {
 window.addEventListener('resize', renderGraph);
 
 // boot
+lighting = initLighting({
+  $, el, state, store, toast, guarded,
+  canWrite: () => !!state.device && state.readDone && !state.busy && !!state.hs,
+  afterWrite: async (d) => {
+    await new Promise((r) => setTimeout(r, 300));
+    state.hs = await d.readState();
+    renderDevice();
+    renderDefaults();
+  },
+});
 renderPresets();
 setBands(presetBands(BUILTIN.find((p) => p.name === state.currentPreset)), state.currentPreset);
 renderBackups();

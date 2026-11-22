@@ -37,6 +37,49 @@
       <div id="quickEq" class="quick-eq"></div>
     </section>
 
+    <!-- ================= LIGHTING ================= -->
+    <section class="card wide view-home" id="cardLighting">
+      <div class="card-head">
+        <h2>Lighting</h2>
+        <div class="seg" role="radiogroup" aria-label="Lighting source">
+          <label><input type="radio" name="lightTab" value="themes" checked /> <span>Fractal themes</span></label>
+          <label><input type="radio" name="lightTab" value="custom" /> <span>Custom</span></label>
+        </div>
+      </div>
+      <div class="light-now">
+        <div id="ledPreview" class="leds" aria-hidden="true"></div>
+        <div>
+          <div><span class="muted small">On headset:</span> <strong id="lightNow">—</strong></div>
+          <div class="muted small" id="lightPreviewing"></div>
+        </div>
+      </div>
+      <div id="lightThemes" class="themes"></div>
+      <div id="lightCustom" class="light-custom hidden">
+        <div class="field">
+          <label for="selPattern">Pattern</label>
+          <select id="selPattern"></select>
+        </div>
+        <div class="field">
+          <label>Colours</label>
+          <div id="lightColors" class="colors"></div>
+        </div>
+        <div class="field" id="fldSpeed">
+          <label for="rngSpeed">Speed <output id="speedValue" for="rngSpeed"></output></label>
+          <input type="range" id="rngSpeed" min="1" max="100" step="1" value="50" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="rngBrightness">Brightness <output id="brightnessValue" for="rngBrightness"></output></label>
+        <input type="range" id="rngBrightness" min="0" max="100" step="1" value="100" />
+      </div>
+      <div class="actions">
+        <button id="btnLightApply" class="btn" disabled>Apply to headset</button>
+        <progress id="lightProgress" class="hidden" max="1" value="0"></progress>
+        <span id="lightHint" class="muted small"></span>
+      </div>
+      <p id="lightWdl" class="muted small"></p>
+    </section>
+
     <!-- ================= DEVICE ================= -->
     <section class="card view-home" id="cardDevice">
       <h2>Headset</h2>

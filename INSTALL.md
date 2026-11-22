@@ -1,7 +1,7 @@
 # Scape Local: install, rebuild and recovery
 
 Scape Local is an offline replacement for Fractal's Adjust Pro configurator for the **Fractal
-Scape** headset: EQ slots, lighting on/off, sidetone, mic noise cancellation, and **Boost**.
+Scape** headset: EQ slots, lighting (themes and custom patterns), sidetone, mic noise cancellation, and **Boost**.
 It runs from the system tray, starts with Windows, and needs no internet or account.
 
 Everything needed to reinstall it, even if Fractal's site, SourceForge or npm disappear, is in the

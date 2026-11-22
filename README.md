@@ -23,7 +23,10 @@ re-implements the parts you need locally, after mapping the headset's HID protoc
 - **EQ editor:** up to 5 bands (peak, low/high shelf, low/high pass, notch, band pass), live
   frequency-response graph, Adjust Pro-compatible **EQ share codes** (paste/copy), presets with
   JSON import/export. It writes to the headset with automatic backup and read-back verification.
-- **Lighting** on/off, **sidetone** (0 to 100 %), **mic noise cancellation** on/off. Optional
+- **Lighting:** all 10 Fractal themes (Northern lights, Sunset, Starfall, …) and custom patterns
+  (Shift, Still, Breathe, Waves, Two color fade, Lava lamp) with your own colours, speed and
+  brightness, plus a live preview of the 12 LEDs. Effects are rendered byte-identical to Adjust Pro.
+- Lighting on/off, **sidetone** (0 to 100 %), **mic noise cancellation** on/off. Optional
   "my defaults" that are re-applied every time the headset connects.
 - **Boost:** a slider from +1 to +14 dB (112 to 501 %), like a browser "amplify" extension but
   system-wide:
@@ -58,6 +61,8 @@ The app talks to the headset through a strict **allowlist** of HID commands
 - Every packet's arguments are range-checked. EQ values are validated (20 Hz to 20 kHz, ±12 dB, Q 0.4 to 10).
 - Before an EQ slot is overwritten, its contents are backed up. After writing, the slot is read
   back and compared. Overwriting a slot from the editor asks for confirmation.
+- Lighting uploads only go to effect slot 1 (the one Adjust Pro uses). Clearing a slot, boot
+  effects and the Windows Dynamic Lighting switch are blocked. The stored effect is read back after each upload.
 - Every packet sent and received is shown in the **HID packet log** (EQ editor view).
 
 Tested on a Scape over the 2.4 GHz dongle (dongle FW 03.21.00, headset FW 03.30.00). USB-C
@@ -68,21 +73,8 @@ loud content may clip (crackle) at high Boost levels.
 
 ## Roadmap / not yet supported
 
-**Lighting customization is the main gap.** Today Scape Local can only turn the headset RGB
-**on or off**. These Adjust Pro lighting features aren't implemented yet:
-
-- **Fractal themes:** Northern lights, Summer sky, Sunset, Starfall, Glistening ice, Pink sapphire,
-  Lunar mist, Mystic night, Campfire, Radiant dawn.
-- **Custom lighting patterns:** Shift, Still, Breathe, Waves, Two color fade, Lava lamp, each with
-  a colour palette.
-- **Colour picker** (hex/RGB), **speed** and **brightness**.
-- **Windows Dynamic Lighting (WDL)** enable/disable (Advanced settings).
-
-The protocol for uploading lighting effects is already mapped (multi-packet effect upload,
-[PROTOCOL.md §6](PROTOCOL.md#6-lighting-headset)). It hasn't been built yet because it writes
-effect data to the headset's storage and needs careful testing first. Contributions and testers are welcome.
-
-Other open items:
+- **Windows Dynamic Lighting (WDL)** is shown read-only. Switching it makes the headset reconnect
+  (it sends no reply), so the switch is blocked for now; use Adjust Pro for that setting.
 - USB-C direct mode is untested (should work; same commands).
 - Mic EQ (documented in PROTOCOL.md §7, no UI yet).
 - Whether settings survive a headset power cycle hasn't been confirmed. "Re-apply on every connect"
@@ -93,9 +85,9 @@ Other open items:
 | Path | What |
 |---|---|
 | [`PROTOCOL.md`](PROTOCOL.md) | The headset's HID protocol: report layout, every command, EQ write sequence, what is blocked and why |
-| [`app/renderer/js/`](app/renderer/js) | Plain ES modules: `protocol.js` (packets and allowlist), `hid.js` (WebHID), `eqcode.js` (share codes), `biquad.js` (RBJ filters), `boost.js`, `app.js` (UI) |
+| [`app/renderer/js/`](app/renderer/js) | Plain ES modules: `protocol.js` (packets and allowlist), `hid.js` (WebHID), `eqcode.js` (share codes), `biquad.js` (RBJ filters), `lighting.js` (effect rendering and upload), `boost.js`, `app.js` / `lighting-ui.js` (UI) |
 | [`app/main.cjs`](app/main.cjs), [`apo-host.cjs`](app/apo-host.cjs) | Electron shell: tray, autostart, HID permissions, network block, Equalizer APO config |
-| [`app/tests/`](app/tests) | 48 Node tests: share codes (byte-exact), filter math, allowlist, Boost on/off round trips, APO config restore |
+| [`app/tests/`](app/tests) | 66 Node tests: share codes (byte-exact), filter math, lighting effects (golden vectors), allowlist, Boost on/off round trips, APO config restore |
 
 The UI also runs in Chrome or Edge without Electron (`node tools/serve.js app/renderer 8741`,
 then open http://localhost:8741) for the EQ tools and WebHID access. There's no tray or PC Boost there.
