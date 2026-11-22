@@ -23,6 +23,7 @@
       <span id="connLabel">Not connected</span>
       <span id="battery" class="pill hidden"></span>
       <span id="boostBadge" class="pill boost hidden"></span>
+      <span id="micBadge" class="pill boost hidden"></span>
       <button id="btnConnect" class="btn">Connect</button>
       <button id="btnRefresh" class="btn ghost" disabled>Re-read</button>
     </div>
@@ -105,9 +106,8 @@
           <div><strong>Sidetone</strong><div class="muted small">Hear your own voice</div></div>
           <div class="val" id="valSidetone">—</div>
           <div class="actions">
-            <button class="btn small ghost" data-act="sidetone0" disabled>Set to 0</button>
-            <button class="btn small ghost" data-act="sidetoneDown" disabled>−10%</button>
-            <button class="btn small ghost" data-act="sidetoneUp" disabled>+10%</button>
+            <input type="range" id="rngSidetone" class="sidetone-range" min="0" max="100" step="10" value="0" list="sidetoneTicks" aria-label="Sidetone level" disabled />
+            <datalist id="sidetoneTicks"><option value="0"></option><option value="50"></option><option value="100"></option></datalist>
           </div>
         </div>
         <div class="row">
@@ -155,6 +155,19 @@
       <div id="boostSetup" class="setup hidden"></div>
       <div id="boostConflict" class="warn hidden"></div>
       <p class="muted small">Boost raises the digital level, like a browser “amplify” slider. Quiet sources get louder. Already-loud music or games can clip (crackle): if you hear distortion, pick a lower level.</p>
+
+      <div class="subsection" id="micBoostSection">
+        <div class="card-head">
+          <h3>Mic Boost</h3>
+          <label class="switch big"><input type="checkbox" id="chkMicBoost" /><span></span> <strong id="micBoostState">Off</strong></label>
+        </div>
+        <div class="slider">
+          <input type="range" id="rngMicBoost" min="1" max="12" step="1" value="6" aria-label="Mic Boost level in dB" />
+          <output id="micBoostValue" for="rngMicBoost">+6 dB · 200%</output>
+        </div>
+        <div id="micBoostSetup" class="setup hidden"></div>
+        <p class="muted small">Makes your voice louder for the people you talk to (Windows only, Scape microphone). It raises background noise too, and too much can crackle; around +6 dB is usually enough.</p>
+      </div>
     </section>
 
     <!-- ================= EQ ================= -->

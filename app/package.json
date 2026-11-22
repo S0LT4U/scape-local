@@ -1,6 +1,6 @@
 {
   "name": "scape-local",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": true,
   "description": "Offline tray app for the Fractal Scape headset (EQ, lighting, mic) — replacement for Adjust Pro",
   "author": "S0LT4U",

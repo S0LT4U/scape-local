@@ -182,3 +182,19 @@ test('sidetone percent table matches Adjust Pro', () => {
   assert.equal(sidetonePercent(100), 100);
   assert.equal(sidetonePercent(30), null);
 });
+
+test('sidetone slider plan: percent -> relative volume packets', async () => {
+  const { sidetonePlanTo } = await import('../renderer/js/protocol.js');
+  const h = (p) => p.packets.map((x) => hex(x));
+  assert.deepEqual(h(sidetonePlanTo(0, 10)), ['F1 34 02 32', 'F1 34 02 05']); // 0 -> raw 55 (same as verified on hardware)
+  assert.equal(sidetonePlanTo(0, 10).target, 55);
+  assert.deepEqual(h(sidetonePlanTo(55, 100)), ['F1 34 02 2D']); // +45
+  assert.deepEqual(h(sidetonePlanTo(100, 50)), ['F1 34 03 19']); // -25 -> raw 75
+  assert.deepEqual(sidetonePlanTo(75, 50).packets, []);
+  assert.equal(sidetonePlanTo(80, 0).target, 0); // 0 % goes through sidetoneToZero
+  for (let pct = 10; pct <= 100; pct += 10) {
+    const p = sidetonePlanTo(0, pct);
+    assert.equal(sidetonePercent(p.target), pct);
+    for (const pk of p.packets) checkPacket(pk);
+  }
+});

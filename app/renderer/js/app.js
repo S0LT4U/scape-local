@@ -1,7 +1,7 @@
 import { decodeEqCode, encodeEqCode, validateBands, describeBands, tidy, FILTER_LABELS, MAX_BANDS, LIMITS } from './eqcode.js';
 import { responseDb, logFreqs, coefficients, magnitudeDb } from './biquad.js';
 import { ScapeDevice } from './hid.js';
-import { cmd, hex, parse, ALLOWED, buildEqWrite, SIDETONE, BlockedCommandError, sidetoneStepPlan, sidetonePercent } from './protocol.js';
+import { cmd, hex, parse, ALLOWED, buildEqWrite, SIDETONE, BlockedCommandError, sidetonePlanTo } from './protocol.js';
 import { initLighting } from './lighting-ui.js';
 import { applyHeadsetBoost, headsetBoostBlocker, isBoostOf, isBoostBand, stripHeadsetBoost, HEADSET_MAX_DB, dbToPercent } from './boost.js';
 
@@ -100,7 +100,7 @@ function setBusy(b) {
 function updateWriteButtons() {
   const can = !!state.device && state.readDone && !state.busy && !!state.hs;
   const valid = validateBands(state.bands).length === 0;
-  document.querySelectorAll('[data-act], #btnApplyDefaults, .slot button[data-write]').forEach((b) => {
+  document.querySelectorAll('[data-act], #btnApplyDefaults, #rngSidetone, .slot button[data-write]').forEach((b) => {
     b.disabled = !can || (b.dataset.write === 'eq' && !valid);
   });
   $('btnRefresh').disabled = !state.device || state.busy;
@@ -509,7 +509,8 @@ function renderDefaults() {
     });
   mark('[data-act=lights]', (b) => (b.dataset.on === '1') === hs.lightsOn);
   mark('[data-act=enc]', (b) => (b.dataset.on === '1') === hs.encOn);
-  mark('[data-act=sidetone0]', () => hs.sidetoneRaw === 0);
+  const st = $('rngSidetone');
+  if (hs && hs.sidetonePct != null && document.activeElement !== st) st.value = String(hs.sidetonePct);
   $('chkEnforce').checked = state.enforce;
   updateWriteButtons();
   lighting?.render();
@@ -680,17 +681,6 @@ document.querySelectorAll('[data-act]').forEach((b) =>
       let res;
       if (act === 'lights') res = await d.write([cmd.lights(on)], `Turn headset lighting ${on ? 'on' : 'off'}`);
       else if (act === 'enc') res = await d.write([cmd.enc(on)], `Turn mic noise cancellation ${on ? 'on' : 'off'}`);
-      else if (act === 'sidetoneUp' || act === 'sidetoneDown') {
-        const raw = (await d.readState()).sidetoneRaw;
-        const plan = sidetoneStepPlan(raw, act === 'sidetoneUp' ? 1 : -1);
-        if (plan.target === raw) return;
-        if (plan.target === 0) await sidetoneToZero(d, []);
-        else await d.write(plan.packets, `Sidetone → ${sidetonePercent(plan.target)}%`);
-        res = { cancelled: false };
-      } else if (act === 'sidetone0') {
-        await sidetoneToZero(d, []);
-        res = { cancelled: false };
-      }
       if (!res || res.cancelled) return;
       await new Promise((r) => setTimeout(r, 300));
       state.hs = await d.readState();
@@ -699,6 +689,24 @@ document.querySelectorAll('[data-act]').forEach((b) =>
     });
   }),
 );
+
+// Sidetone slider: applied when released (each change is a few relative volume packets).
+$('rngSidetone').addEventListener('input', (e) => ($('valSidetone').textContent = `${e.target.value}%`));
+$('rngSidetone').addEventListener('change', (e) => {
+  const pct = Number(e.target.value);
+  guarded(async (d) => {
+    const raw = (await d.readState()).sidetoneRaw;
+    const plan = sidetonePlanTo(raw, pct);
+    if (plan.target === 0) {
+      if (raw !== 0) await sidetoneToZero(d, []);
+    } else if (plan.packets.length) await d.write(plan.packets, `Sidetone → ${pct}%`);
+    await new Promise((r) => setTimeout(r, 300));
+    state.hs = await d.readState();
+    renderDevice();
+    renderDefaults();
+  });
+  e.target.blur();
+});
 
 $('btnApplyDefaults').addEventListener('click', () => applyDefaults());
 $('chkEnforce').addEventListener('change', async (e) => {
@@ -782,6 +790,7 @@ async function refreshApo() {
 }
 
 function renderBoost() {
+  renderMicBoost();
   const lv = boostActiveLevel();
   const on = lv != null;
   // badge
@@ -995,6 +1004,111 @@ rng.addEventListener('change', () => {
   if (boost.headset) setBoost(true, lv);
   else if (boost.apo?.active) livePcLevel(lv);
 });
+// ---------------------------------------------------------------------------
+// Mic Boost (Windows only: Equalizer APO preamp on the Scape's microphone)
+// ---------------------------------------------------------------------------
+const MIC_MAX_DB = 12;
+let micLevel = store.get('scape.micBoostLevel', 6);
+let micTimer = null;
+let micDragging = false;
+
+function micActive() {
+  return boost.apo?.micLevel || null;
+}
+function showMicValue(db) {
+  const out = $('micBoostValue');
+  out.textContent = `+${db} dB · ${dbToPercent(db)}%`;
+  out.classList.toggle('hot', db > 9);
+}
+function renderMicBoost() {
+  const lv = micActive();
+  const on = lv != null;
+  const a = boost.apo;
+  $('chkMicBoost').checked = on;
+  $('micBoostState').textContent = on ? `On · +${lv} dB` : 'Off';
+  const badge = $('micBadge');
+  badge.textContent = on ? `MIC +${lv} dB` : '';
+  badge.classList.toggle('hidden', !on);
+  if (!micDragging) {
+    $('rngMicBoost').value = String(on ? lv : micLevel);
+    showMicValue(on ? lv : micLevel);
+  }
+  const setup = $('micBoostSetup');
+  setup.classList.add('hidden');
+  let canEnable = true;
+  if (!host) {
+    canEnable = false;
+    setup.replaceChildren(el('span', {}, 'Mic Boost needs the desktop app (not available in the browser).'));
+    setup.classList.remove('hidden');
+  } else if (!a) canEnable = false;
+  else if (!a.installed || !a.micAttached || !a.micEndpoints?.length) {
+    canEnable = on; // allow turning off
+    const mic = a.micEndpoints?.find((e) => e.active) || a.micEndpoints?.[0];
+    setup.replaceChildren(
+      el('strong', {}, !a.installed ? 'Equalizer APO is not installed' : !mic ? 'No Scape microphone found in Windows' : 'Equalizer APO is not attached to the Scape microphone yet'),
+      el('ol', {},
+        !a.installed ? el('li', {}, 'Install Equalizer APO (the Scape Local installer offers it).') : null,
+        el('li', {}, 'In the Configurator, open the ', el('strong', {}, 'Capture devices'), ' tab and tick ', el('code', {}, mic ? `${mic.name} (${mic.iface})` : 'the Scape’s microphone'), '.'),
+        el('li', {}, 'Restart Windows when asked, then reopen this panel.'),
+      ),
+      el('div', { class: 'actions' }, el('button', { class: 'btn small ghost', onclick: refreshApo }, 'Check again')),
+    );
+    setup.classList.remove('hidden');
+  } else if (!a.writable) {
+    canEnable = false;
+    setup.replaceChildren(el('span', {}, `Can’t write to ${a.configDir}.`));
+    setup.classList.remove('hidden');
+  }
+  $('chkMicBoost').disabled = !canEnable;
+}
+
+/** All APO writes (speaker and mic) go through apoChain so they can't overwrite each other. */
+async function setMicBoost(on, level) {
+  clearTimeout(micTimer);
+  try {
+    const p = apoChain.then(() => host.apoSetMic(on ? level : 0));
+    apoChain = p.catch(() => {});
+    boost.apo = await p;
+    toast(on ? `Mic Boost +${level} dB on` : 'Mic Boost off');
+  } catch (err) {
+    toast(`Mic Boost: ${err.message}`, true);
+  } finally {
+    renderBoost();
+  }
+}
+function liveMicLevel(db) {
+  clearTimeout(micTimer);
+  micTimer = setTimeout(() => {
+    apoChain = apoChain.then(async () => {
+      if (!micActive()) return; // turned off meanwhile
+      try {
+        boost.apo = await host.apoSetMic(db);
+      } catch (err) {
+        toast(`Mic Boost: ${err.message}`, true);
+      }
+      renderBoost();
+    });
+  }, 120);
+}
+$('chkMicBoost').addEventListener('change', (e) => {
+  const on = e.target.checked;
+  e.target.checked = !on; // reflect the real state once it succeeded
+  setMicBoost(on, Number($('rngMicBoost').value));
+});
+const micRng = $('rngMicBoost');
+micRng.addEventListener('pointerdown', () => (micDragging = true));
+micRng.addEventListener('input', () => {
+  const lv = Math.min(MIC_MAX_DB, Number(micRng.value));
+  showMicValue(lv);
+  if (micActive()) liveMicLevel(lv);
+});
+micRng.addEventListener('change', () => {
+  micDragging = false;
+  micLevel = Number(micRng.value);
+  store.set('scape.micBoostLevel', micLevel);
+  if (micActive()) liveMicLevel(micLevel);
+});
+
 document.querySelectorAll('input[name=boostWhere]').forEach((r) =>
   r.addEventListener('change', () => {
     boost.where = r.value;

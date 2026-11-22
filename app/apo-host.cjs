@@ -5,7 +5,7 @@ const { execFile } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const RENDER_KEY = 'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\MMDevices\\Audio\\Render';
+const MMDEV = 'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\MMDevices\\Audio';
 const PKEY_NAME = '{a45c254e-df1c-4efd-8020-67d146a850e0},2'; // endpoint name, e.g. "Headset Earphone"
 const PKEY_IFACE = '{b3f8fa53-0004-438e-9003-51a46e139bfc},6'; // interface, e.g. "Fractal Scape Dongle"
 const APO_CLSID = 'EACD2258-FCAC-4FF4-B36D-419E924A6D79';
@@ -39,14 +39,15 @@ async function apoInstallDir() {
   return v || 'C:\\Program Files\\EqualizerAPO';
 }
 
-/** All Scape playback endpoints Windows knows about (active or not). */
-async function scapeEndpoints() {
+/** All Scape endpoints of one kind ('Render' = playback, 'Capture' = mic) that Windows knows about. */
+async function scapeEndpoints(kind = 'Render') {
+  const RENDER_KEY = `${MMDEV}\\${kind}`;
   const r = parseReg(await reg(['query', RENDER_KEY, '/s', '/v', PKEY_IFACE]));
   const eps = [];
   for (const [key, vals] of Object.entries(r)) {
     const iface = vals[PKEY_IFACE];
     if (!iface || !/Fractal Scape/i.test(iface)) continue;
-    const m = /\\Render\\(\{[0-9a-f-]+\})\\Properties$/i.exec(key);
+    const m = /\\(?:Render|Capture)\\(\{[0-9a-f-]+\})\\Properties$/i.exec(key);
     if (!m) continue;
     const guid = m[1];
     const props = parseReg(await reg(['query', `${RENDER_KEY}\\${guid}\\Properties`, '/v', PKEY_NAME]));
@@ -75,9 +76,11 @@ function createApoHost(userDataDir) {
     const configText = readIf(path.join(configDir, 'config.txt'));
     let writable = false;
     try { fs.accessSync(configDir, fs.constants.W_OK); writable = true; } catch {}
-    const endpoints = await scapeEndpoints();
+    const endpoints = await scapeEndpoints('Render');
+    const micEndpoints = await scapeEndpoints('Capture');
     const boostText = readIf(path.join(configDir, L.BOOST_FILE));
-    const level = boostText && configText && L.hasBlock(configText) ? Number((/^Preamp:\s*([\d.]+)/m.exec(boostText) || [])[1]) || null : null;
+    const levels = boostText && configText && L.hasBlock(configText) ? L.parseBoostFile(boostText) : { speakers: 0, mic: 0 };
+    const level = levels.speakers || null;
     // conflicts: other config that would also hit the Scape
     const files = {};
     if (configText != null) {
@@ -98,21 +101,25 @@ function createApoHost(userDataDir) {
       attached: endpoints.some((e) => e.apoAttached),
       active: level != null,
       level,
+      micEndpoints,
+      micAttached: micEndpoints.some((e) => e.apoAttached),
+      micLevel: levels.mic || null,
       conflicts: L.findConflicts(files),
     };
   }
 
-  /** db > 0 turns Boost on at that level (or changes level); db = 0 turns it off. */
-  async function set(db) {
+  /** Write speaker and mic levels (0 = off). When both are 0, config.txt is restored byte for byte. */
+  async function apply(levels) {
     const L = await loadLib();
     const st = await status();
     if (!st.writable) throw new Error(`Cannot write to ${st.configDir}`);
     const cfgPath = path.join(st.configDir, 'config.txt');
     const boostPath = path.join(st.configDir, L.BOOST_FILE);
     const current = readIf(cfgPath) ?? '';
-    if (db > 0) {
-      if (!st.endpoints.length) throw new Error('No Scape playback device found in Windows');
-      fs.writeFileSync(boostPath, L.buildBoostFile(db, st.endpoints));
+    if (levels.speakers > 0 || levels.mic > 0) {
+      if (levels.speakers > 0 && !st.endpoints.length) throw new Error('No Scape playback device found in Windows');
+      if (levels.mic > 0 && !st.micEndpoints.length) throw new Error('No Scape microphone found in Windows');
+      fs.writeFileSync(boostPath, L.buildBoostFileFor(levels, { render: st.endpoints, capture: st.micEndpoints }));
       if (!L.hasBlock(current)) {
         fs.writeFileSync(originalFile, current); // exact copy for byte-for-byte restore
         fs.writeFileSync(cfgPath, L.addBlock(current));
@@ -126,7 +133,18 @@ function createApoHost(userDataDir) {
     return status();
   }
 
-  return { status, set };
+  /** Speaker Boost: db > 0 = on at that level, 0 = off. Keeps the mic level as it is. */
+  async function set(db) {
+    const st = await status();
+    return apply({ speakers: db, mic: st.micLevel || 0 });
+  }
+  /** Mic Boost: db > 0 = on at that level, 0 = off. Keeps the speaker level as it is. */
+  async function setMic(db) {
+    const st = await status();
+    return apply({ speakers: st.level || 0, mic: db });
+  }
+
+  return { status, set, setMic };
 }
 
 module.exports = { createApoHost };

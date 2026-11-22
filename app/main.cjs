@@ -197,6 +197,11 @@ ipcMain.handle('apo:set', (_e, db) => {
   if (!(n === 0 || (n > 0 && n <= 14))) throw new Error('invalid boost level');
   return apo.set(n);
 });
+ipcMain.handle('apo:setMic', (_e, db) => {
+  const n = Number(db);
+  if (!(n === 0 || (Number.isInteger(n) && n > 0 && n <= 12))) throw new Error('invalid mic boost level');
+  return apo.setMic(n);
+});
 
 app.on('second-instance', showWindow);
 app.on('before-quit', () => { quitting = true; });

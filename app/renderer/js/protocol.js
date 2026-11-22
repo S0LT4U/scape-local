@@ -192,6 +192,24 @@ export function sidetoneStepPlan(raw, dir) {
   return { target, packets };
 }
 
+/**
+ * Packets to move sidetone from `raw` to `pct` percent (10..100; 0 is handled by sidetoneToZero).
+ * Levels: 10 % = raw 55 … 100 % = raw 100 (5 units per 10 %). Volume steps are relative, ≤ 50 per packet.
+ */
+export function sidetonePlanTo(raw, pct) {
+  const target = pct <= 0 ? 0 : Math.min(100, 50 + Math.round(pct / 10) * 5);
+  const packets = [];
+  if (target !== 0) {
+    let diff = target - raw;
+    while (diff !== 0) {
+      const n = Math.min(50, Math.abs(diff));
+      packets.push(cmd.sidetone(diff > 0 ? SIDETONE.VOL_UP : SIDETONE.VOL_DOWN, n));
+      diff -= Math.sign(diff) * n;
+    }
+  }
+  return { target, packets };
+}
+
 /** Raw sidetone volume -> percent. Table from Adjust Pro: 0 -> 0 %, 55..100 -> 10..100 %. */
 export function sidetonePercent(raw) {
   if (raw === 0) return 0;

@@ -10,4 +10,5 @@ contextBridge.exposeInMainWorld('scapeHost', {
   copyText: (text) => ipcRenderer.invoke('clipboard:write', text),
   apoStatus: () => ipcRenderer.invoke('apo:status'),
   apoSet: (db) => ipcRenderer.invoke('apo:set', db),
+  apoSetMic: (db) => ipcRenderer.invoke('apo:setMic', db),
 });

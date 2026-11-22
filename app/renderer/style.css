@@ -199,3 +199,7 @@ body:not([data-view="home"]) .view-home, body:not([data-view="lighting"]) .view-
 .colors { display: flex; gap: 6px; flex-wrap: wrap; }
 .colors input[type=color] { width: 36px; height: 28px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: transparent; cursor: pointer; }
 #lightProgress { width: 160px; accent-color: var(--accent); }
+.subsection { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.subsection .card-head { margin-bottom: 6px; }
+.subsection h3 { margin: 0; font-size: 15px; }
+.sidetone-range { width: min(220px, 100%); accent-color: var(--accent); }
