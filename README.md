@@ -92,7 +92,7 @@ loud content may clip (crackle) at high Boost levels.
 | [`PROTOCOL.md`](PROTOCOL.md) | The headset's HID protocol: report layout, every command, EQ write sequence, what is blocked and why |
 | [`app/renderer/js/`](app/renderer/js) | Plain ES modules: `protocol.js` (packets and allowlist), `hid.js` (WebHID), `eqcode.js` (share codes), `biquad.js` (RBJ filters), `lighting.js` (effect rendering and upload), `boost.js`, `app.js` / `lighting-ui.js` (UI) |
 | [`app/main.cjs`](app/main.cjs), [`apo-host.cjs`](app/apo-host.cjs) | Electron shell: tray, autostart, HID permissions, network block, Equalizer APO config |
-| [`app/tests/`](app/tests) | 71 Node tests: share codes (byte-exact), filter math, lighting effects (golden vectors), allowlist, Boost and Mic Boost round trips, APO config restore |
+| [`app/tests/`](app/tests) | 72 Node tests: share codes (byte-exact), filter math, lighting effects (golden vectors), sidetone plans, allowlist, Boost and Mic Boost round trips, APO config restore |
 
 The UI also runs in Chrome or Edge without Electron (`node tools/serve.js app/renderer 8741`,
 then open http://localhost:8741) for the EQ tools and WebHID access. There's no tray or PC Boost there.
