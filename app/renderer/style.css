@@ -156,7 +156,7 @@ dialog .log { max-height: 50vh; }
 .slider output.hot { color: var(--warn); }
 
 /* ---- views ---- */
-body[data-view="home"] .view-editor, body[data-view="editor"] .view-home { display: none; }
+body:not([data-view="home"]) .view-home, body:not([data-view="lighting"]) .view-lighting, body:not([data-view="editor"]) .view-editor { display: none; }
 .tabs { display: inline-flex; gap: 4px; margin-left: 14px; }
 .tab { font: inherit; font-size: 13px; background: transparent; color: var(--muted); border: 1px solid transparent; border-radius: 6px; padding: 4px 10px; cursor: pointer; }
 .tab:hover { color: var(--text); }

@@ -20,10 +20,10 @@ re-implements the parts you need locally, after mapping the headset's HID protoc
 ## Features
 
 - **EQ slots:** see the headset's three EQ slots by name and switch between them with one click.
-- **EQ editor:** up to 5 bands (peak, low/high shelf, low/high pass, notch, band pass), live
+- **EQ Editor:** up to 5 bands (peak, low/high shelf, low/high pass, notch, band pass), live
   frequency-response graph, Adjust Pro-compatible **EQ share codes** (paste/copy), presets with
   JSON import/export. It writes to the headset with automatic backup and read-back verification.
-- **Lighting:** all 10 Fractal themes (Northern lights, Sunset, Starfall, …) and custom patterns
+- **Lighting** (its own tab): all 10 Fractal themes (Northern lights, Sunset, Starfall, …) and custom patterns
   (Shift, Still, Breathe, Waves, Two color fade, Lava lamp) with your own colours, speed and
   brightness, plus a live preview of the 12 LEDs. Effects are rendered byte-identical to Adjust Pro.
 - Lighting on/off, **sidetone** (0 to 100 %), **mic noise cancellation** on/off. Optional
@@ -38,7 +38,9 @@ re-implements the parts you need locally, after mapping the headset's HID protoc
   2.4 GHz dongle or USB-C.
 - **Offline and private:** no account, no telemetry. The app blocks all network requests.
 
-![EQ editor](docs/screenshot-editor.png)
+![Lighting](docs/screenshot-lighting.png)
+
+![EQ Editor](docs/screenshot-editor.png)
 
 ## Install
 
@@ -63,7 +65,7 @@ The app talks to the headset through a strict **allowlist** of HID commands
   back and compared. Overwriting a slot from the editor asks for confirmation.
 - Lighting uploads only go to effect slot 1 (the one Adjust Pro uses). Clearing a slot, boot
   effects and the Windows Dynamic Lighting switch are blocked. The stored effect is read back after each upload.
-- Every packet sent and received is shown in the **HID packet log** (EQ editor view).
+- Every packet sent and received is shown in the **HID packet log** (EQ Editor tab).
 
 Tested on a Scape over the 2.4 GHz dongle (dongle FW 03.21.00, headset FW 03.30.00). USB-C
 direct mode uses the same commands but hasn't been tested yet.

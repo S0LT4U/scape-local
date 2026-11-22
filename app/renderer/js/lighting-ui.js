@@ -50,7 +50,7 @@ export function initLighting(ctx) {
     }
   }
   setInterval(() => {
-    if (!frames || document.hidden) return;
+    if (!frames || document.hidden || document.body.dataset.view !== 'lighting') return;
     const n = frames.length / (3 * LED_COUNT);
     const o = (frame % n) * 3 * LED_COUNT;
     for (let i = 0; i < LED_COUNT; i++) leds[i].style.backgroundColor = rgbToHex(Array.from(frames.subarray(o + 3 * i, o + 3 * i + 3)));

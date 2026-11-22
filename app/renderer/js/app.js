@@ -752,7 +752,7 @@ function setView(v) {
   if (v === 'editor') renderGraph(); // canvas needs a size once visible
 }
 document.querySelectorAll('[data-view].tab, [data-goto]').forEach((b) => b.addEventListener('click', () => setView(b.dataset.view || b.dataset.goto)));
-setView(store.get('scape.view', 'home'));
+setView(['home', 'lighting', 'editor'].includes(store.get('scape.view')) ? store.get('scape.view') : 'home');
 
 // ---------------------------------------------------------------------------
 // Boost (PC via Equalizer APO, or headset EQ band)
